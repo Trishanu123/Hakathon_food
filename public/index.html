@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hackathon Food Ordering</title>
+    <style>
+        /* General Styling */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            padding: 10px;
+            margin: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        h1 {
+            text-align: center;
+            font-size: 1.5rem;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+        label, input, select {
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #successMessage {
+            display: none;
+            color: green;
+            text-align: center;
+            margin-top: 10px;
+        }
+        
+        /* Responsive styling */
+        .item-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 15px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            position: relative;
+            background-color: #fafafa;
+        }
+        .delete-button {
+            position: absolute;
+            bottom: 10;
+            right: 10px;
+            padding: 5px 8px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        .delete-button:hover {
+            background-color: #c0392b;
+        }
+
+        /* Mobile view adjustments */
+        @media (max-width: 600px) {
+            body, .container {
+                padding: 10px;
+            }
+            h1 {
+                font-size: 1.25rem;
+            }
+            button {
+                font-size: 0.9rem;
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Order Food for Your Team</h1>
+        <form id="orderForm">
+            <label for="teamName">Team Name:</label>
+            <input type="text" id="teamName" name="teamName" required>
+
+            <label for="roomName">Room Name:</label>
+            <input type="text" id="roomName" name="roomName" required>
+
+            <div id="itemsContainer"></div>
+
+            <button type="button" id="addItemButton">Add Another Item</button>
+            <button type="submit">Place Order</button>
+        </form>
+        <p id="successMessage">Order placed successfully!</p>
+    </div>
+
+    <script>
+        const form = document.getElementById('orderForm');
+        const successMessage = document.getElementById('successMessage');
+        const itemsContainer = document.getElementById('itemsContainer');
+        const addItemButton = document.getElementById('addItemButton');
+
+        const flavors = {
+            'Popcorn': ['Cheese', 'Butter', 'Salted', 'Peri Peri'],
+            'Soft Drinks': ['Coke', 'Sprite']
+        };
+
+        // Function to add another item section to the form
+        const addItem = () => {
+            const itemGroup = document.createElement('div');
+            itemGroup.classList.add('item-group');
+
+            itemGroup.innerHTML = `
+                <label for="foodItem">Select Food Item:</label>
+                <select class="foodItem" name="foodItem" required>
+                    <option value="">Select an option</option>
+                    <option value="Popcorn">Popcorn (₹20-₹50)</option>
+                    <option value="Cold Coffee">Cold Coffee (₹40)</option>
+                    <option value="Soft Drinks">Soft Drinks (₹30)</option>
+                    <option value="Doritos & Dips">Doritos & Dips (₹100)</option>
+                    <option value="Lays">Lays (₹20)</option>
+                </select>
+
+                <label for="flavor">Select Flavor (if applicable):</label>
+                <select class="flavor" name="flavor"></select>
+
+                <label for="quantity">Quantity:</label>
+                <input type="number" class="quantity" name="quantity" min="1" required>
+
+                <button type="button" class="delete-button">Delete</button>
+            `;
+
+            itemsContainer.appendChild(itemGroup);
+
+            // Update flavor options when food item is selected
+            itemGroup.querySelector('.foodItem').addEventListener('change', function() {
+                const flavorSelect = itemGroup.querySelector('.flavor');
+                const selectedItem = this.value;
+                flavorSelect.innerHTML = '';
+
+                if (flavors[selectedItem]) {
+                    flavors[selectedItem].forEach(flavor => {
+                        const option = document.createElement('option');
+                        option.value = flavor;
+                        option.textContent = flavor;
+                        flavorSelect.appendChild(option);
+                    });
+                }
+            });
+
+            // Add delete functionality
+            itemGroup.querySelector('.delete-button').addEventListener('click', () => {
+                itemsContainer.removeChild(itemGroup);
+            });
+        };
+
+        // Add initial item group on page load
+        addItem();
+
+        // Add another item when the button is clicked
+        addItemButton.addEventListener('click', addItem);
+
+        // Handle form submission
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const teamName = document.getElementById('teamName').value;
+            const roomName = document.getElementById('roomName').value;
+            const itemGroups = document.querySelectorAll('.item-group');
+
+            const items = Array.from(itemGroups).map(group => {
+                const foodItem = group.querySelector('.foodItem').value;
+                const flavor = group.querySelector('.flavor').value || null;
+                const quantity = group.querySelector('.quantity').value;
+
+                return { foodItem, flavor, quantity };
+            });
+
+            // Send the data to the backend
+            fetch('/submit-order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ teamName, roomName, items })
+            })
+            .then(response => response.text())
+            .then(data => {
+                successMessage.style.display = 'block';
+                form.reset();
+                itemsContainer.innerHTML = '';
+                addItem();
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    </script>
+</body>
+</html>
